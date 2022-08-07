@@ -3,7 +3,7 @@ from task_2 import host_range_ping
 
 
 def host_range_ping_tab():
-    print(tabulate([host_range_ping(True)], headers='keys', tablefmt='grid', stralign='center'))
+    print(tabulate([host_range_ping(True)], headers='keys', tablefmt='fancy_grid', stralign='center'))
 
 
 if __name__ == '__main__':
