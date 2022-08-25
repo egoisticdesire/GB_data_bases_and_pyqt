@@ -4,12 +4,9 @@ import os.path
 import select
 import sys
 import threading
-
 from socket import AF_INET, SOCK_STREAM, socket, SOL_SOCKET, SO_REUSEADDR
-
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication, QMessageBox
-
 from db.server_db_config import ServerDB
 from server_gui import ConfigWindow, create_stat_model, gui_create_model, HistoryWindow, MainWindow
 from logs.server_log_config import LOGGER
@@ -18,10 +15,8 @@ from common.meta import ServerMeta
 from common.decorators import Log
 from common.utils import get_message, send_message
 from common.variables import ACCOUNT_NAME, ACTION, ADD_CONTACT, CONNECTION_TIMEOUT, DEFAULT_PORT, DESTINATION, ERROR, \
-    EXIT, \
-    GET_CONTACTS, LIST_INFO, MESSAGE, MESSAGE_TEXT, PRESENCE, REMOVE_CONTACT, RESPONSE_200, RESPONSE_202, RESPONSE_400, \
-    SENDER, SERVER_CONFIG, TIME, \
-    USER, USERS_REQUEST
+    EXIT, GET_CONTACTS, LIST_INFO, MESSAGE, MESSAGE_TEXT, PRESENCE, REMOVE_CONTACT, RESPONSE_200, RESPONSE_202, \
+    RESPONSE_400, SENDER, SERVER_CONFIG, TIME, USER, USERS_REQUEST
 
 # Флаг, что был подключён новый пользователь, нужен чтобы не мучить БД
 # постоянными запросами на обновление
@@ -44,7 +39,6 @@ def args_parser(default_port, default_addr):
     return listen_addr, listen_port
 
 
-@Log
 class Server(threading.Thread, metaclass=ServerMeta):
     port = Port()
 
@@ -89,15 +83,15 @@ class Server(threading.Thread, metaclass=ServerMeta):
             try:
                 if self.clients:
                     recv_list, send_list, err_list = select.select(self.clients, self.clients, [], 0)
-            except OSError:
-                pass
+            except OSError as err:
+                LOGGER.error(f'Ошибка работы с сокетами: {err}')
 
             # Принимаем сообщения и если ошибка - исключаем клиента.
             if recv_list:
                 for client_with_msg in recv_list:
                     try:
                         self.process_client_message(get_message(client_with_msg), client_with_msg)
-                    except:
+                    except OSError:
                         LOGGER.info(f'Пользователь {client_with_msg.getpeername()} отключился от сервера.')
                         for name in self.names:
                             if self.names[name] == client_with_msg:
@@ -107,15 +101,14 @@ class Server(threading.Thread, metaclass=ServerMeta):
                         self.clients.remove(client_with_msg)
 
             # Если есть сообщения - обрабатываем каждое.
-            for msg in self.messages:
+            for message in self.messages:
                 try:
-                    self.process_message(msg, send_list)
-                except Exception as e:
-                    LOGGER.info(f'Пользователь {msg[DESTINATION]} отключился.\n'
-                                f'Причина: {e}')
-                    self.clients.remove(self.names[msg[DESTINATION]])
-                    self.database.user_logout(msg[DESTINATION])
-                    del self.names[msg[DESTINATION]]
+                    self.process_message(message, send_list)
+                except (ConnectionAbortedError, ConnectionError, ConnectionResetError, ConnectionRefusedError):
+                    LOGGER.info(f'Пользователь {message[DESTINATION]} отключился.')
+                    self.clients.remove(self.names[message[DESTINATION]])
+                    self.database.user_logout(message[DESTINATION])
+                    del self.names[message[DESTINATION]]
             self.messages.clear()
 
     def process_message(self, message, listen_socks):
@@ -176,7 +169,8 @@ class Server(threading.Thread, metaclass=ServerMeta):
                 and DESTINATION in message \
                 and TIME in message \
                 and SENDER in message \
-                and MESSAGE_TEXT in message:
+                and MESSAGE_TEXT in message\
+                and self.names[message[SENDER]] == client:
             self.messages.append(message)
             self.database.process_message(message[SENDER], message[DESTINATION])
             return
@@ -187,9 +181,9 @@ class Server(threading.Thread, metaclass=ServerMeta):
                 and self.names[message[ACCOUNT_NAME]] == client:
             self.database.user_logout(message[ACCOUNT_NAME])
             LOGGER.info(f'Пользователь {message[ACCOUNT_NAME]} корректно отключился от сервера.')
-            self.clients.remove(self.names[ACCOUNT_NAME])
-            self.names[ACCOUNT_NAME].close()
-            del self.names[ACCOUNT_NAME]
+            self.clients.remove(self.names[message[ACCOUNT_NAME]])
+            self.names[message[ACCOUNT_NAME]].close()
+            del self.names[message[ACCOUNT_NAME]]
             with conflag_lock:
                 new_connection = True
             return
@@ -249,9 +243,6 @@ def main():
                     config['SETTINGS']['Database_file']
             )
     )
-
-    # db.user_login('client_1', '192.168.1.4', 8888)
-    # db.user_login('client_2', '192.168.1.5', 7777)
 
     server = Server(listen_addr, listen_port, db)
     server.daemon = True

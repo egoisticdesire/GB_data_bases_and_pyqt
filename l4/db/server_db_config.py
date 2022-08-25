@@ -1,9 +1,8 @@
+import datetime
 from pprint import pprint
-
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import datetime
 
 
 class ServerDB:
@@ -74,7 +73,8 @@ class ServerDB:
         self.engine = create_engine(
                 f'sqlite:///{path}',
                 echo=False,
-                pool_recycle=7200
+                pool_recycle=7200,
+                connect_args={'check_same_thread': False}
         )
 
         self.Base.metadata.create_all(self.engine)
@@ -132,13 +132,13 @@ class ServerDB:
         self.session.commit()
 
     # Функция возвращает список известных пользователей со временем последнего входа.
-    def all_users_list(self):
-        query = self.session.query(
-                self.AllUsers.login,
-                self.AllUsers.last_conn,
-        )
-        # Возвращаем список тюплов
-        return query.all()
+    # def all_users_list(self):
+    #     query = self.session.query(
+    #             self.AllUsers.login,
+    #             self.AllUsers.last_conn,
+    #     )
+    #     # Возвращаем список тюплов
+    #     return query.all()
 
     def process_message(self, sender, recipient):
         # Получаем ID отправителя и получателя

@@ -1,6 +1,5 @@
 import datetime
 import pathlib
-
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -17,7 +16,7 @@ class ClientDB:
         def __init__(self, username):
             self.username = username
 
-    class MessagesHistory(Base):
+    class MessageHistory(Base):
         __tablename__ = 'messages_history'
         id = Column(Integer, primary_key=True)
         from_user = Column(String)
@@ -74,7 +73,7 @@ class ClientDB:
         self.session.commit()
 
     def save_message(self, from_user, to_user, message):
-        message_row = self.MessagesHistory(from_user, to_user, message)
+        message_row = self.MessageHistory(from_user, to_user, message)
         self.session.add(message_row)
         self.session.commit()
 
@@ -87,15 +86,17 @@ class ClientDB:
     def check_user(self, user):
         if self.session.query(self.KnownUsers).filter_by(username=user).count():
             return True
-        return False
+        else:
+            return False
 
     def check_contact(self, contact):
         if self.session.query(self.Contacts).filter_by(name=contact).count():
             return True
-        return False
+        else:
+            return False
 
     def get_history(self, from_who=None, to_who=None):
-        query = self.session.query(self.MessagesHistory)
+        query = self.session.query(self.MessageHistory)
         if from_who:
             query = query.filter_by(from_user=from_who)
         if to_who:

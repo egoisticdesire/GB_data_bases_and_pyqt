@@ -2,30 +2,27 @@ import argparse
 import sys
 import json
 import threading
-
 from time import sleep, time
 from socket import AF_INET, SOCK_STREAM, socket
-
 from db.client_db_config import ClientDB
 from logs.client_log_config import LOGGER
 from common.meta import ClientMeta
 from common.decorators import Log
 from common.utils import get_message, send_message
 from common.variables import ACCOUNT_NAME, ACTION, ADD_CONTACT, DEFAULT_IP_ADDRESS, DEFAULT_PORT, DESTINATION, ERROR, \
-    EXIT, \
-    GET_CONTACTS, LIST_INFO, MESSAGE, \
-    MESSAGE_TEXT, PRESENCE, REMOVE_CONTACT, RESPONSE, SENDER, TIME, USER, USERS_REQUEST
+    EXIT, GET_CONTACTS, LIST_INFO, MESSAGE, MESSAGE_TEXT, PRESENCE, REMOVE_CONTACT, RESPONSE, SENDER, TIME, USER, \
+    USERS_REQUEST
 
 sock_lock = threading.Lock()
 database_lock = threading.Lock()
 
 
-@Log
+# @Log
 class ClientSender(threading.Thread, metaclass=ClientMeta):
-    def __init__(self, account_name, sock, db):
+    def __init__(self, account_name, sock, database):
         self.account_name = account_name
         self.sock = sock
-        self.db = db
+        self.database = database
         super().__init__()
 
     def create_exit_message(self):
@@ -50,7 +47,7 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
 
         # Проверим, что получатель существует
         with database_lock:
-            if not self.db.check_user(to_user):
+            if not self.database.check_user(to_user):
                 LOGGER.error(f'Пользователя "{to_user}" не существует.')
                 return
 
@@ -64,7 +61,7 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
         LOGGER.debug(f'Сформирован словарь сообщения: {message_dict}')
 
         with database_lock:
-            self.db.save_message(self.account_name, to_user, message)
+            self.database.save_message(self.account_name, to_user, message)
 
         with sock_lock:
             try:
@@ -94,6 +91,7 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
         self.print_help()
         while True:
             action = input('Выберите действие: ')
+
             if action == 'message' or action == 'm':
                 self.create_message()
             elif action == 'help' or action == '?':
@@ -102,7 +100,8 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
                 with sock_lock:
                     try:
                         send_message(self.sock, self.create_exit_message())
-                    except:
+                    except Exception as e:
+                        print(e)
                         pass
                     print('Соединение разорвано.')
                     LOGGER.info('Завершение работы по команде пользователя.')
@@ -110,7 +109,7 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
                 break
             elif action == 'contacts' or action == 'c':
                 with database_lock:
-                    contacts_list = self.db.get_contacts()
+                    contacts_list = self.database.get_contacts()
                 for contact in contacts_list:
                     print(contact)
             elif action == 'edit' or action == 'e':
@@ -129,17 +128,17 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
                     ': ')
         with database_lock:
             if ask == 'in':
-                history_list = self.db.get_hisrtory(to_who=self.account_name)
+                history_list = self.database.get_history(to_who=self.account_name)
                 for message in history_list:
                     print(f'\nСообщение от пользователя: {message[0]} '
                           f'от {message[3]}:\n{message[2]}')
             elif ask == 'out':
-                history_list = self.db.get_history(from_who=self.account_name)
+                history_list = self.database.get_history(from_who=self.account_name)
                 for message in history_list:
                     print(f'\nСообщение пользователю: {message[1]} '
                           f'от {message[3]}:\n{message[2]}')
             else:
-                history_list = self.db.get_history()
+                history_list = self.database.get_history()
                 for message in history_list:
                     print(f'\nСообщение от пользователя: {message[0]},'
                           f' пользователю {message[1]} '
@@ -153,26 +152,29 @@ class ClientSender(threading.Thread, metaclass=ClientMeta):
         if ans == 'del':
             edit = input('Введите имя удаляемого контакта: ')
             with database_lock:
-                if self.db.check_contact(edit):
-                    self.db.del_contact(edit)
+                if self.database.check_contact(edit):
+                    self.database.del_contact(edit)
                 else:
                     LOGGER.error('Попытка удаления несуществующего контакта.')
         elif ans == 'add':
             # Проверка на возможность такого контакта
             edit = input('Введите имя создаваемого контакта: ')
-            if self.db.check_user(edit):
+            if self.database.check_user(edit):
                 with database_lock:
-                    self.db.add_contact(edit)
+                    self.database.add_contact(edit)
                 with sock_lock:
-                    add_contact(self.sock, self.account_name, edit)
+                    try:
+                        add_contact(self.sock, self.account_name, edit)
+                    except:
+                        LOGGER.error('Не удалось отправить информацию на сервер.')
 
 
-@Log
+# @Log
 class ClientReceiver(threading.Thread, metaclass=ClientMeta):
-    def __init__(self, account_name, sock, db):
+    def __init__(self, account_name, sock, database):
         self.account_name = account_name
         self.sock = sock
-        self.db = db
+        self.database = database
         super().__init__()
 
     def run(self):
@@ -191,7 +193,8 @@ class ClientReceiver(threading.Thread, metaclass=ClientMeta):
                     LOGGER.critical('Потеряно соединение с сервером.')
                     break
                 else:
-                    if ACTION in message and message[ACTION] == MESSAGE \
+                    if ACTION in message \
+                            and message[ACTION] == MESSAGE \
                             and SENDER in message \
                             and DESTINATION in message \
                             and MESSAGE_TEXT in message \
@@ -201,7 +204,7 @@ class ClientReceiver(threading.Thread, metaclass=ClientMeta):
                         # Захватываем работу с базой данных и сохраняем в неё сообщение
                         with database_lock:
                             try:
-                                self.db.save_message(
+                                self.database.save_message(
                                         message[SENDER],
                                         self.account_name,
                                         message[MESSAGE_TEXT]
@@ -287,7 +290,8 @@ def contacts_list_request(sock, name):
     send_message(sock, req)
     ans = get_message(sock)
     LOGGER.debug(f'Получен ответ {ans}')
-    if RESPONSE in ans and ans[RESPONSE] == 202:
+    if RESPONSE in ans \
+            and ans[RESPONSE] == 202:
         return ans[LIST_INFO]
 
 
@@ -302,7 +306,8 @@ def add_contact(sock, username, contact):
     }
     send_message(sock, req)
     ans = get_message(sock)
-    if RESPONSE in ans and ans[RESPONSE] == 200:
+    if RESPONSE in ans \
+            and ans[RESPONSE] == 200:
         pass
     print('Удачное создание контакта.')
 

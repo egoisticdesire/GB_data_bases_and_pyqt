@@ -1,7 +1,5 @@
 import os
 import sys
-
-from PyQt5 import QtGui
 from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication, QLabel, QTableView, QDialog, QPushButton, \
     QLineEdit, QFileDialog, QMessageBox
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
@@ -9,8 +7,8 @@ from PyQt5.QtCore import Qt
 
 
 # GUI - Создание таблицы QModel, для отображения в окне программы.
-def gui_create_model(db):
-    users_list = db.active_users_list()
+def gui_create_model(database):
+    users_list = database.active_users_list()
     table_list = QStandardItemModel()
     table_list.setHorizontalHeaderLabels(['Client', 'IP address', 'Port', 'Connection time'])
 
@@ -22,7 +20,7 @@ def gui_create_model(db):
         ip.setEditable(False)
         port = QStandardItem(port)
         port.setEditable(False)
-        time = QStandardItem(str(time.replace(microseconds=0)))
+        time = QStandardItem(str(time.replace(microsecond=0)))
         time.setEditable(False)
 
         table_list.appendRow([user, ip, port, time])
@@ -36,8 +34,9 @@ def create_stat_model(database):
     hist_list = database.message_history()
 
     # Объект модели данных:
-    list_table = QStandardItemModel()
-    list_table.setHorizontalHeaderLabels(['Client', 'Last activity', 'Messages sent', 'Messages received'])
+    table_list = QStandardItemModel()
+    table_list.setHorizontalHeaderLabels(['Client', 'Last activity', 'Messages sent', 'Messages received'])
+
     for row in hist_list:
         user, last_seen, sent, recvd = row
         user = QStandardItem(user)
@@ -48,8 +47,8 @@ def create_stat_model(database):
         sent.setEditable(False)
         recvd = QStandardItem(str(recvd))
         recvd.setEditable(False)
-        list_table.appendRow([user, last_seen, sent, recvd])
-    return list_table
+        table_list.appendRow([user, last_seen, sent, recvd])
+    return table_list
 
 
 class MainWindow(QMainWindow):
@@ -70,17 +69,13 @@ class MainWindow(QMainWindow):
 
         self.statusBar()
 
-        self.toolbar = self.addToolBar('Main')
+        self.toolbar = self.addToolBar('MainBar')
         self.toolbar.addAction(self.exit_btn)
         self.toolbar.addAction(self.refresh_btn)
         self.toolbar.addAction(self.show_history_btn)
         self.toolbar.addAction(self.config_btn)
 
-        self.setFixedSize(
-                800, 600
-                # (QApplication.desktop().width() // 2),
-                # (QApplication.desktop().height() // 2)
-        )
+        self.setFixedSize(800, 600)
         self.setWindowTitle('main window')
 
         self.label = QLabel('List of connected clients: ', self)
@@ -190,9 +185,9 @@ class ConfigWindow(QDialog):
         self.save_btn.move(190, 320)
 
         # Кнопка закрытия окна
-        self.close_button = QPushButton('Close', self)
-        self.close_button.move(275, 320)
-        self.close_button.clicked.connect(self.close)
+        self.close_btn = QPushButton('Close', self)
+        self.close_btn.move(275, 320)
+        self.close_btn.clicked.connect(self.close)
 
         self.show()
 
@@ -212,6 +207,7 @@ if __name__ == '__main__':
     app.exec_()
 
     # ----------------------------------------------------------
+
     # app = QApplication(sys.argv)
     # window = HistoryWindow()
     # test_list = QStandardItemModel(window)
@@ -227,8 +223,8 @@ if __name__ == '__main__':
     # app.exec_()
 
     # ----------------------------------------------------------
+
     # app = QApplication(sys.argv)
     # dial = ConfigWindow()
     #
     # app.exec_()
-    #
