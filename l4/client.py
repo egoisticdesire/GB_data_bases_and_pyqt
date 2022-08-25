@@ -188,7 +188,10 @@ class ClientReceiver(threading.Thread, metaclass=ClientMeta):
             with sock_lock:
                 try:
                     message = get_message(self.sock)
-
+                except OSError as err:
+                    if err.errno:
+                        LOGGER.critical('Потеряно соединение с сервером.')
+                        break
                 except (OSError, ConnectionError, ConnectionAbortedError, ConnectionResetError, json.JSONDecodeError):
                     LOGGER.critical('Потеряно соединение с сервером.')
                     break
