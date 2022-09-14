@@ -122,8 +122,8 @@ class MainWindow(QMainWindow):
         self.active_clients_table.resizeRowsToContents()
         # Первая колонка "резиновая" - тянется в зависимости от размеров окна (и таблицы)
         self.active_clients_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.active_clients_table.horizontalHeader().resizeSection(1, self.active_clients_table.width() // 2 // 3)
-        self.active_clients_table.horizontalHeader().resizeSection(2, self.active_clients_table.width() // 2 // 3)
+        self.active_clients_table.resizeColumnToContents(1)
+        self.active_clients_table.resizeColumnToContents(2)
         self.active_clients_table.resizeColumnToContents(3)
 
     def show_statistics(self):
