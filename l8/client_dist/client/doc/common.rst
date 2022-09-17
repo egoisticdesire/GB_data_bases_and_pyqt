@@ -1,0 +1,69 @@
+common package
+==============
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   common.qss
+
+Submodules
+----------
+
+common.decorators module
+------------------------
+
+.. automodule:: common.decorators
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+common.descriptor module
+------------------------
+
+.. automodule:: common.descriptor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+common.errors module
+--------------------
+
+.. automodule:: common.errors
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+common.meta module
+------------------
+
+.. automodule:: common.meta
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+common.utils module
+-------------------
+
+.. automodule:: common.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+common.variables module
+-----------------------
+
+.. automodule:: common.variables
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: common
+   :members:
+   :undoc-members:
+   :show-inheritance:
