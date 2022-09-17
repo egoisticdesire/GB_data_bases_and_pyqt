@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-# path = os.path.join(os.getcwd(), '../client_dist/client/common/img')
+# path = os.path.join(os.getcwd(), 'client/common/img')
 # images = os.listdir(path)
 
 setup(
